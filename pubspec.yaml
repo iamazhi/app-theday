@@ -1,0 +1,28 @@
+name: memorial_day
+description: "纪念日 (Memorial Day) app for tracking important dates."
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_local_notifications: ^17.2.1
+  flutter_riverpod: ^2.5.1
+  intl: ^0.19.0
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  shared_preferences: ^2.2.3
+  timezone: ^0.9.2
+  uuid: ^4.4.2
+
+dev_dependencies:
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.11
+  hive_generator: ^2.0.1
+
+flutter:
+  uses-material-design: true
+
