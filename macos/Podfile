@@ -27,6 +27,8 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_macos_podfile_setup
 
 target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
 
   flutter_install_all_macos_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
@@ -35,7 +37,45 @@ target 'Runner' do
 end
 
 post_install do |installer|
+  flutter_root_path = flutter_root
+  artifacts_dir = File.join(flutter_root_path, 'bin', 'cache', 'artifacts', 'engine')
+  debug_framework_dir = File.expand_path(File.join(artifacts_dir, 'darwin-x64', 'FlutterMacOS.xcframework'), __FILE__)
+  release_framework_dir = File.expand_path(File.join(artifacts_dir, 'darwin-x64-release', 'FlutterMacOS.xcframework'), __FILE__)
+  
   installer.pods_project.targets.each do |target|
     flutter_additional_macos_build_settings(target)
+    
+    # Ensure FlutterMacOS framework is found for all macOS plugin targets
+    if target.platform_name == :osx && target.name != 'FlutterMacOS'
+      target.build_configurations.each do |config|
+        configuration_engine_dir = (config.type == :debug ? debug_framework_dir : release_framework_dir)
+        if Dir.exist?(configuration_engine_dir)
+          Dir.new(configuration_engine_dir).each_child do |xcframework_file|
+            next if xcframework_file.start_with?('.')
+            if xcframework_file.start_with?('macos-')
+              framework_path = File.join(configuration_engine_dir, xcframework_file)
+              framework_modules_path = File.join(framework_path, 'FlutterMacOS.framework', 'Versions', 'A', 'Modules')
+              modulemap_path = File.join(framework_modules_path, 'module.modulemap')
+              
+              if Dir.exist?(framework_path)
+                current_paths = config.build_settings['FRAMEWORK_SEARCH_PATHS'] || '$(inherited)'
+                unless current_paths.include?(framework_path)
+                  config.build_settings['FRAMEWORK_SEARCH_PATHS'] = "\"#{framework_path}\" #{current_paths}"
+                end
+                
+                # Add module map file to Swift flags if it exists
+                if File.exist?(modulemap_path)
+                  current_swift_flags = config.build_settings['OTHER_SWIFT_FLAGS'] || '$(inherited)'
+                  modulemap_flag = "-fmodule-map-file=\"#{modulemap_path}\""
+                  unless current_swift_flags.include?(modulemap_flag)
+                    config.build_settings['OTHER_SWIFT_FLAGS'] = "#{current_swift_flags} -Xcc #{modulemap_flag}"
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
   end
 end
